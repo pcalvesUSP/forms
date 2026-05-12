@@ -273,17 +273,23 @@ class Form
         foreach ($this->definition->fields as $field) {
             if (array_is_list($field)) {
                 // agrupando campos na mesma linha: igual para bs4 e bs5
-                $fields .= '<div class="row">';
+                if($field[0]['type'] == 'separator')
+                {
+                    $fields .= '<div class="row my-2 border-bottom"';
+                }
+                else{$fields .= '<div class="row">';}
+                
                 foreach ($field as $f) {
-                    $colClass = 'col';
-                    if (isset($f['width']) && is_numeric($f['width'])) {
-                        $width = (int) $f['width'];
-                        if ($width >= 1 && $width <= 12) {
-                            $colClass = 'col-' . $width;
+                    if($f['type'] != 'separator'){
+                        $colClass = 'col';
+                        if (isset($f['width']) && is_numeric($f['width'])) {
+                            $width = (int) $f['width'];
+                            if ($width >= 1 && $width <= 12) {
+                                $colClass = 'col-' . $width;
+                            }
                         }
+                        $fields .= '<div class="' . $colClass . '">' . $this->generateField($f, $formSubmission) . '</div>';
                     }
-
-                    $fields .= '<div class="' . $colClass . '">' . $this->generateField($f, $formSubmission) . '</div>';
                 }
                 $fields .= '</div>';
             } else {
