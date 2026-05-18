@@ -189,10 +189,20 @@ class Form
         foreach ($definition->fields as $field) {
             if (array_is_list($field)) {
                 foreach ($field as $f) {
-                    $rules[$f['name']] = self::getFieldValidationRule($f);
+                    if($f['type'] == 'file')
+                    {
+                        $key = 'file.' . $f['name'];
+                    }
+                    else {$key = $f['name'];}
+                    $rules[$key] = self::getFieldValidationRule($f);
                 }
             } else {
-                $rules[$field['name']] = self::getFieldValidationRule($field);
+                if($field['type'] == 'file')
+                    {
+                        $key = 'file.' . $field['name'];
+                    }
+                    else {$key = $field['name'];}
+                $rules[$key] = self::getFieldValidationRule($field);
             }
         }
         return $rules;
@@ -225,13 +235,14 @@ class Form
         ];
 
         if (isset($rulesMap[$field['type']])) {
+            
             $rule .= '|' . $rulesMap[$field['type']];
         }
 
         return $rule;
     }
 
-    public static function addFieldGenParams($field)
+    protected static function addFieldGenParams($field)
     {
         $field['bs'] = config('uspdev-forms.bootstrapVersion');
         $field['required'] = isset($field['required']) ? $field['required'] : false;
@@ -260,21 +271,39 @@ class Form
 
         $fields = '';
         foreach ($this->definition->fields as $field) {
+            $has_sep = false;
+
             if (array_is_list($field)) {
+                
+                // Verifica se há a necessidade de um separador entre esta linha e a anteriror
+                if($field[0]['type'] == 'separator')
+                {
+                    $fields .= 
+                    '<div class="d-flex align-items-center mt-5 mb-2">
+                        <h6 class="text-secondary mr-2 ">
+                            <strong>'. ($field[0]['label'] ?? '') .'</strong>
+                        </h6>
+                        <div class="flex-grow-1 border mb-2"></div>
+                    </div>';
+                }
+
                 // agrupando campos na mesma linha: igual para bs4 e bs5
                 $fields .= '<div class="row">';
+                
                 foreach ($field as $f) {
-                    $colClass = 'col';
-                    if (isset($f['width']) && is_numeric($f['width'])) {
-                        $width = (int) $f['width'];
-                        if ($width >= 1 && $width <= 12) {
-                            $colClass = 'col-' . $width;
+                    if($f['type'] != 'separator'){
+                        $colClass = 'col';
+                        if (isset($f['width']) && is_numeric($f['width'])) {
+                            $width = (int) $f['width'];
+                            if ($width >= 1 && $width <= 12) {
+                                $colClass = 'col-' . $width;
+                            }
                         }
+                        $fields .= '<div class="' . $colClass . '">' . $this->generateField($f, $formSubmission) . '</div>';
                     }
-
-                    $fields .= '<div class="' . $colClass . '">' . $this->generateField($f, $formSubmission) . '</div>';
                 }
                 $fields .= '</div>';
+                
             } else {
                 // a linha possui um campo somente
                 if (isset($field['width']) && is_numeric($field['width'])) {
