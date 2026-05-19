@@ -59,8 +59,9 @@ class Form
      * Processa submissões do form persistindo em banco de dados
      *
      * Faz a validação dos campos do form
-     * Dentro do request precisa ter form_definition, form_key
+     * Dentro do request precisa ter: form_definition, form_key
      * user é opcional para o caso do form ser aberto
+     * Se possui $request->id atualiza se não cria nova submission
      *
      * @param $request->form_definition
      * @param $request->form_key
@@ -109,7 +110,7 @@ class Form
                 if (isset($form->data[$fieldName])) {
                     $filePath = $form->data[$fieldName]['stored_path'];
                     $deleted = Storage::disk('local')->delete($filePath);
-                    // tratar erro se não conseguir remover o arquivo, geralmente por problemas de permissão
+                    // todo: tratar erro se não conseguir remover o arquivo, geralmente por problemas de permissão
                     unset($data[$fieldName]);
                 }
             }
@@ -189,19 +190,19 @@ class Form
         foreach ($definition->fields as $field) {
             if (array_is_list($field)) {
                 foreach ($field as $f) {
-                    if($f['type'] == 'file')
-                    {
+                    if ($f['type'] == 'file') {
                         $key = 'file.' . $f['name'];
+                    } else {
+                        $key = $f['name'];
                     }
-                    else {$key = $f['name'];}
                     $rules[$key] = self::getFieldValidationRule($f);
                 }
             } else {
-                if($field['type'] == 'file')
-                    {
-                        $key = 'file.' . $field['name'];
-                    }
-                    else {$key = $field['name'];}
+                if ($field['type'] == 'file') {
+                    $key = 'file.' . $field['name'];
+                } else {
+                    $key = $field['name'];
+                }
                 $rules[$key] = self::getFieldValidationRule($field);
             }
         }
@@ -235,7 +236,7 @@ class Form
         ];
 
         if (isset($rulesMap[$field['type']])) {
-            
+
             $rule .= '|' . $rulesMap[$field['type']];
         }
 
@@ -264,7 +265,7 @@ class Form
      */
     public function generateHtml(?string $formName = null, $formSubmission = null)
     {
-        // pega  pela definição
+        // pega pela definição
         if (!($this->definition = $this->getDefinition($formName ?? $this->name)) && !($this->definition = $formSubmission->formDefinition)) {
             return null;
         }
@@ -274,14 +275,13 @@ class Form
             $has_sep = false;
 
             if (array_is_list($field)) {
-                
+
                 // Verifica se há a necessidade de um separador entre esta linha e a anteriror
-                if($field[0]['type'] == 'separator')
-                {
-                    $fields .= 
-                    '<div class="d-flex align-items-center mt-5 mb-2">
+                if ($field[0]['type'] == 'separator') {
+                    $fields .=
+                        '<div class="d-flex align-items-center mt-5 mb-2">
                         <h6 class="text-secondary mr-2 ">
-                            <strong>'. ($field[0]['label'] ?? '') .'</strong>
+                            <strong>' . ($field[0]['label'] ?? '') . '</strong>
                         </h6>
                         <div class="flex-grow-1 border mb-2"></div>
                     </div>';
@@ -289,9 +289,9 @@ class Form
 
                 // agrupando campos na mesma linha: igual para bs4 e bs5
                 $fields .= '<div class="row">';
-                
+
                 foreach ($field as $f) {
-                    if($f['type'] != 'separator'){
+                    if ($f['type'] != 'separator') {
                         $colClass = 'col';
                         if (isset($f['width']) && is_numeric($f['width'])) {
                             $width = (int) $f['width'];
@@ -303,7 +303,6 @@ class Form
                     }
                 }
                 $fields .= '</div>';
-                
             } else {
                 // a linha possui um campo somente
                 if (isset($field['width']) && is_numeric($field['width'])) {
@@ -384,9 +383,11 @@ class Form
 
     /**
      * Lista as submissões com filtro
-     * 
+     *
+     * Operadores permitidos: contains, =, ==, !=, empty, not_empty
+     *
      * @param string $field Nome do campo do json dentro de data a ser filtrado
-     * @param string $operator Operador de comparação. Suporta: contains, =, ==, !=, empty, not_empty
+     * @param string $operator Operador de comparação.
      * @param mixed $value Valor a ser comparado. Pode ser string, array ou null
      * @return \Illuminate\Database\Eloquent\Collection
      */
@@ -402,38 +403,29 @@ class Form
             $query::where('key', $this->key);
         }
 
-        switch ($operator) {
-            case 'contains':
-                // valor dentro do JSON (array ou string)
-                return $query::whereJsonContains($jsonField, (string) $value)->get();
+        return match ($operator) {
+            'contains' => $query::whereJsonContains($jsonField, (string) $value)->get(),
 
-            case '=':
-            case '==':
-                return $query::where($jsonField, $value)->get();
+            '=', '==' => $query::where($jsonField, $value)->get(),
 
-            case '!=':
-                return $query::where($jsonField, '!=', $value)->get();
+            '!=' => $query::where($jsonField, '!=', $value)->get(),
 
-            case 'empty':
-                return $query::where(function ($query) use ($jsonField) {
-                    $query->whereNull($jsonField)
-                        ->orWhere($jsonField, '');
-                })->get();
+            'empty' => $query::where(function ($query) use ($jsonField) {
+                $query->whereNull($jsonField)->orWhere($jsonField, '');
+            })->get(),
 
-            case 'not_empty':
-                return $query::where(function ($query) use ($jsonField) {
-                    $query->whereNotNull($jsonField)
-                        ->where($jsonField, '!=', '');
-                })->get();
+            'not_empty' => $query::where(function ($query) use ($jsonField) {
+                $query->whereNotNull($jsonField)->where($jsonField, '!=', '');
+            })->get(),
 
-            default:
-                throw new \InvalidArgumentException("Operador '$operator' não suportado.");
-        }
+            default => throw new \InvalidArgumentException(
+                sprintf("Operador '%s' não suportado.", $operator)
+            ),
+        };
     }
 
-
     /**
-     * Get a form submission by id
+     * Retorna uma submissão pelo id
      */
     public function getSubmission($id)
     {
@@ -441,11 +433,15 @@ class Form
     }
 
     /**
-     * Get a form submission activities by id
+     * Retorna as últimas 20 activities de uma submissão
+     *
+     * Retorna primeiro as mais recentes.
+     * A quantidade pode ser personalizada pelo parâmeto $take
+     *
      */
-    public function getSubmissionActivities($id)
+    public function getSubmissionActivities($id, $take = 20)
     {
-        return Activity::orderBy('created_at', 'DESC')->where('subject_id', $id)->take(20)->get();
+        return Activity::orderBy('created_at', 'DESC')->where('subject_id', $id)->take($take)->get();
     }
 
     /**
@@ -513,6 +509,12 @@ class Form
         return FormDefinition::where($where)->get();
     }
 
+    /**
+     * Retorna informações detalhadas de uma activity de submissão, incluindo os dados do formulário no momento da atividade.
+      *
+      * @param int $id ID da atividade a ser detalhada
+      * @return \Spatie\Activitylog\Models\Activity
+     */
     public function detailActivity($id)
     {
         return Activity::findOrFail($id);
