@@ -171,6 +171,7 @@ class Form
             return [
                 'status' => 'error',
                 'errors' => $validator->errors(),
+                'data' => $request->only(array_keys($rules)),
             ];
         }
 
@@ -216,6 +217,7 @@ class Form
     {
         // required or nullable
         $rule = !empty($field['required']) ? 'required' : 'nullable';
+        $rule = !empty($field['validation_rule']) ? $rule.'|'.$field['validation_rule'] : $rule;
 
         $options = $field['options'] ?? [];
         $options = is_array($options) ? $options : [];
@@ -236,7 +238,7 @@ class Form
         ];
 
         if (isset($rulesMap[$field['type']])) {
-
+            
             $rule .= '|' . $rulesMap[$field['type']];
         }
 
