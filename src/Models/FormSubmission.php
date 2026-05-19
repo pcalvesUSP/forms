@@ -30,7 +30,7 @@ class FormSubmission extends Model
     }
 
     /**
-     * Get the form definition that owns the submission
+     * Relacionamento com FormDefinition
      */
     public function formDefinition(): BelongsTo
     {
@@ -38,13 +38,16 @@ class FormSubmission extends Model
     }
 
     /**
-     * Get the user that owns the submission
+     * Relacionamento com User
      */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Retorna as opções de auditoria da submissão.
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -62,6 +65,8 @@ class FormSubmission extends Model
 
     /**
      * Renderiza o HTML de visualização do formulário enviado
+     *
+     * Utiliza a mesma regra de criação do formulário, lido do json.
      *
      * @param bool $longName Se true, exibe nome completo de campos como disciplina-usp (código + nome)
      * @param bool $isAdmin Se true, exibe e destaca campos administrativos (sem label)
@@ -134,7 +139,6 @@ class FormSubmission extends Model
                 . '</div>';
         }
 
-
         return $fields;
     }
 
@@ -145,23 +149,19 @@ class FormSubmission extends Model
     {
         $fieldName = $field['name'];
         $value = $this->data[$fieldName] ?? null;
+        $value = blank($value) ? 'n/a' : $value;
 
-
-        if ($value === null || $value === '') {
-            $value = 'n/a';
-        }
-
-        return '<div class="small mb-1"><span class="text-danger font-weight-bold">'
-            . e($fieldName)
-            . ':</span> '
-            . e((string) $value)
-            . '</div>';
+        return sprintf(
+            '<div class="small mb-1"><span class="text-danger font-weight-bold">%s:</span> %s</div>',
+            e($fieldName),
+            e((string) $value)
+        );
     }
 
     /**
      * Campos sem label são tratados como administrativos.
      */
-    protected function isAdminField(array $field): bool
+    public function isAdminField(array $field): bool
     {
         return empty(trim((string) ($field['label'] ?? '')));
     }
@@ -175,7 +175,7 @@ class FormSubmission extends Model
      * @param bool $longName Se true, exibe informações completas do campo
      * @return string HTML renderizado do campo
      */
-    protected function renderField($field, $longName = false): string
+    public function renderField($field, $longName = false): string
     {
         $customViews = [
             'checkbox',

@@ -20,6 +20,7 @@ class SubmissionController extends Controller
     public function index(FormDefinition $formDefinition)
     {
         \UspTheme::activeUrl(route('form-definitions.index'));
+
         $config = [
             'editable' => true,
             'name' => $formDefinition->name,
@@ -117,7 +118,7 @@ class SubmissionController extends Controller
         return redirect(route('form-submissions.index', $formDefinition))
             ->with('alert-success', 'Submissão enviada para lixeira com sucesso!');
     }
-    
+
     public function downloadFile($formDefinition, FormSubmission $formSubmission, $fieldName)
     {
         return (new Form())->downloadSubmissionFile($formSubmission, $fieldName);

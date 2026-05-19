@@ -21,7 +21,7 @@ class DefinitionController extends Controller
     public function index()
     {
         \UspTheme::activeUrl(route('form-definitions.index'));
-        
+
         $formDefinitions = FormDefinition::all();
         // Inidica a aba de 'index' como ativa na view
         $activeTab = 'index';
@@ -63,7 +63,7 @@ class DefinitionController extends Controller
     public function update(Request $request, FormDefinition $formDefinition)
     {
         $formDefinition->fields = json_decode($request->input('fields'), true);
-        
+
         $formDefinition->save();
 
         $formDefinition->update($request->only(['name', 'group', 'description']));
@@ -100,19 +100,19 @@ class DefinitionController extends Controller
      *      caso não exista, o cria.
      * Após a verificação, cria o arquivo com nome no formato: 'nomedoform@datadacriaçãodobackup.json'
      * Assim, abre o arquivo e escreve a definição no formato esperado do .json]
-     * 
+     *
      * @param FormDefinition $formDefinition
      * @return \Illuminate\Http\RedirectResponse
      */
     public function backup_def(FormDefinition $formDefinition)
     {
-        
+
         $file_dir = config("uspdev-forms.forms_storage_dir");
         if(!is_dir($file_dir))
         {
             mkdir($file_dir,0777,true);
         }
-        
+
         $file_path = $file_dir . "/" . $formDefinition['name'] . '@' . now()->format('d-m-Y_H:i:s') . ".json";
         $json_file = fopen($file_path, "w");
 
@@ -126,32 +126,32 @@ class DefinitionController extends Controller
     /**
      * Gera um backup de todas as definições persisitidas no banco de dados
      * Apenas usa o método 'backup_def' para todas as definições
-     * 
+     *
      * @return \Illuminate\Http\RedirectResponse
      */
     public function backup_all()
         {
             $form_definitions = FormDefinition::all();
-            
+
             foreach($form_definitions as $form_definition)
             {
                 $this->backup_def($form_definition);
             }
-    
+
             return redirect()->back()->with('alert-success','Backups gerados em: ' . now() . ' com sucesso!');
         }
-    
+
     /**
      * Exibe informações básicas sobre os backups e definições:
      *  Definição - número de backups desta definição
      *  e botões de ação para visualizar e gerar novos backups.
-     * 
+     *
      * @return \Illuminate\Contracts\View\View
      */
     public function backups_index()
     {
         \UspTheme::activeUrl(route('form-definitions.backups'));
-        
+
         // Indica que a aba ativa atualmente é a de backups
         $activeTab = 'backup';
         $formDefinitions = FormDefinition::all();
@@ -160,7 +160,7 @@ class DefinitionController extends Controller
 
     /**
      * Lista todos os backups de ua definição que existem atualmente
-     * 
+     *
      * @param FormDefinition $formDefinition
      * @return \Illuminate\Contracts\View\View
      */
@@ -169,15 +169,16 @@ class DefinitionController extends Controller
         // Percorre todos os backups existentes e filtra pelo nome (relacionados à $formDefinition->name)
         $bckp_files = scandir(config('uspdev-forms.forms_storage_dir'));
         $bckp_files = array_filter($bckp_files, function($filename) use ($formDefinition) { return str_contains($filename,$formDefinition->name); });
-            
+
         $backup_data = [];
 
         // Percorre todos os backups da definition, recuperando a data de criação e a data da última alteração
+        // todo: se nao estiver no formato esperado, pode gerar um erro, tratar isso. ex: sem @ ou sem extensão .json
         foreach($bckp_files as $filename)
         {
             $created_time = explode('@',$filename)[1];
             $created_time = explode('.',$created_time)[0];
-            
+
             $last_mod_time = date('d-m-Y_H:i:s',filemtime(config('uspdev-forms.forms_storage_dir') .'/'.$filename));
 
             // Grava no formato: tempo_criado => tempo_ultima_mod
@@ -190,7 +191,7 @@ class DefinitionController extends Controller
     /**
      * 'Restaura' um backup específico, subindo as alterações feitas no arquivo para o banco de dados
      * ou retornando a definição para o estado em que o backup se encontrava na data de criação
-     * 
+     *
      * @param FormDefinition $formDefinition
      * @param mixed $created_time
      * @return \Illuminate\Http\RedirectResponse
@@ -212,7 +213,7 @@ class DefinitionController extends Controller
 
     /**
      * Remove um arquivo de backup do diretório
-     * 
+     *
      * @param FormDefinition $formDefinition
      * @param string $created_time
      * @return \Illuminate\Http\RedirectResponse
@@ -224,13 +225,13 @@ class DefinitionController extends Controller
 
         // Remonta o nome do arquivo
         $filename = $formDefinition->name . '@' . $created_time . '.json';
-        
+
         // Remonta o caminho completo do arquivo
         $filepath = config('uspdev-forms.forms_storage_dir') . '/' . $filename;
 
         // Caso o arquivo exista no caminho remontado anteriormente, o remove
         if(File::exists($filepath))
-        {    
+        {
             File::delete($filepath);
             return redirect()->back()->with('alert-warning','Backup ' . $filename . ' removido com sucesso.' );
         }
@@ -244,6 +245,7 @@ class DefinitionController extends Controller
 
     /**
      * Remove todos os backups de uma definição, filtrando pelo nome
+     *
      * @param FormDefinition $formDefinition
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -297,6 +299,6 @@ class DefinitionController extends Controller
         }
 
         return redirect()->back()->with('alert-warning', 'Backups removidos com sucesso.');
-        
+
     }
 }

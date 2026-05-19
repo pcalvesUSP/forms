@@ -27,7 +27,7 @@ class FormDefinition extends Model
     /**
      * Sobrescreve o método boot do Eloquent Model.
      *
-     * Registra o evento "saving" para validar os atributos do model antes de salvar:
+     * Registra o evento "saving" para validar os atributos da definição do formulário antes de salvar:
      * - name, group e description com regras básicas de string e tamanho
      * - fields como array obrigatório
      * - flatFields.*.name deve ser único e obrigatório
@@ -94,7 +94,7 @@ class FormDefinition extends Model
 
 
     /**
-     * Get the the submissions for the form definition
+     * Relacionamento com FormSubmission
      */
     public function formSubmissions(): HasMany
     {
